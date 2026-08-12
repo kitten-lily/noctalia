@@ -82,6 +82,9 @@ glib_dep            = dependency('glib-2.0')
 gobject_dep         = dependency('gobject-2.0')
 gio_dep             = dependency('gio-2.0')
 libsecret_dep       = dependency('libsecret-1', version: '>=0.20')
+# Only GcrSecretExchange is used, for the "sx-aes-1" handshake that keeps prompted
+# secrets off the bus in plaintext. See src/dbus/secrets/secret_prompter.cpp.
+gcr_dep             = dependency('gcr-4')
 libsodium_dep       = dependency('libsodium', version: '>=1.0.18')
 polkit_agent_dep    = dependency('polkit-agent-1')
 polkit_gobject_dep  = dependency('polkit-gobject-1')
@@ -483,6 +486,7 @@ _noctalia_sources = files(
   'src/dbus/notification/notification_poll_source.cpp',
   'src/dbus/notification/notification_service.cpp',
   'src/dbus/power/power_profiles_service.cpp',
+  'src/dbus/secrets/secret_prompter.cpp',
   'src/dbus/session_bus.cpp',
   'src/dbus/system_bus.cpp',
   'src/dbus/tray/fcitx_status.cpp',
@@ -684,6 +688,7 @@ _noctalia_sources = files(
   'src/shell/panel/persistent_panel_host.cpp',
   'src/shell/panel/plugin_panel.cpp',
   'src/shell/polkit/polkit_panel.cpp',
+  'src/shell/secrets/secret_prompt_panel.cpp',
   'src/shell/session/session_action_meta.cpp',
   'src/shell/session/session_action_runner.cpp',
   'src/shell/session/session_ipc.cpp',
@@ -1040,6 +1045,7 @@ _noctalia_system_dependencies = [
   gobject_dep,
   gio_dep,
   libsecret_dep,
+  gcr_dep,
   libsodium_dep,
   polkit_agent_dep,
   polkit_gobject_dep,
@@ -1208,6 +1214,7 @@ if build_tests
     'process',
     'scheme',
     'scrollbar_geometry',
+    'secret_prompter',
     'secret_store',
     'security_primitives',
     'state_store',
