@@ -1161,6 +1161,9 @@ struct ShellConfig {
   bool niriOverviewTypeToLaunchEnabled = false;
   bool umbrielOverviewTypeToLaunchEnabled = false;
   bool polkitAgent = false;
+  /// Serve org.gnome.keyring.SystemPrompter so keyring unlock prompts work without
+  /// the legacy gcr-prompter binary. Off by default: another prompter may own the name.
+  bool secretPrompter = false;
   PasswordMaskStyle passwordMaskStyle = PasswordMaskStyle::CircleFilled;
   /// Readline-style editing shortcuts in every text input (Ctrl+A moves to the start instead of selecting all).
   bool readlineShortcuts = false;
