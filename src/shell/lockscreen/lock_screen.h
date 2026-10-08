@@ -51,7 +51,9 @@ public:
   void setLoginBoxServices(
       SessionActionRunner* sessionActions, MprisService* mpris, const WeatherService* weather, HttpClient* httpClient
   );
-  bool lock();
+  /// `animateEntry = false` locks without the entry transition, so the first lock frame never
+  /// shows the pre-lock desktop capture. Use it for locks taken because the system is suspending.
+  bool lock(bool animateEntry = true);
   void primeDesktopCaptures();
   void clearPrimedDesktopCaptures();
   void unlock();
@@ -82,9 +84,14 @@ public:
     }
   }
 
-  /// Runs `fn` after the session reaches interactive lock (`m_locked`), or immediately if already locked.
-  /// Used so suspend runs after lock surfaces exist. Cleared if lock fails or the lock request is aborted.
+  /// Runs `fn` once the session is locked and every lock surface has presented a frame without the
+  /// pre-lock desktop capture, or immediately if that already holds. Locks without an entry transition
+  /// if needed, and cuts a running one short. Used so suspend never freezes a frame of the unlocked
+  /// desktop. Cleared if lock fails or the lock request is aborted.
   void runAfterSessionLocked(std::function<void()> fn);
+  /// Same readiness as runAfterSessionLocked(), in a separate slot and without starting a lock:
+  /// holds logind's sleep-delay inhibit for a lock that is already active or was just requested.
+  void runWhenDesktopConcealed(std::function<void()> fn);
 
   static void handleLocked(void* data, ext_session_lock_v1* lock);
   static void handleFinished(void* data, ext_session_lock_v1* lock);
@@ -101,7 +108,8 @@ private:
   [[nodiscard]] bool captureDesktopSnapshots();
   void invalidateDesktopCaptures();
   [[nodiscard]] bool shouldCaptureDesktop() const;
-  [[nodiscard]] bool allSurfacesReady() const;
+  [[nodiscard]] bool allSurfacesConcealed() const;
+  void skipEnterTransitions();
   bool tryFlushPendingAfterLocked();
   void dispatchPendingAfterLocked();
   void applyLockscreenStyle(LockSurface& surface) const;
@@ -154,12 +162,14 @@ private:
   bool m_desktopCapturesPrimed = false;
   std::uint64_t m_desktopCaptureGeneration = 0;
   bool m_lockDeferred = false;
+  bool m_animateEntry = true;
   bool m_unlocking = false;
   bool m_unlockFinishQueued = false;
   std::optional<LockscreenTransition> m_activeTransition;
   LockscreenTransitionParams m_transitionParams;
   float m_transitionDurationMs = 1500.0F;
   std::function<void()> m_pendingAfterLocked;
+  std::function<void()> m_pendingWhenConcealed;
   std::function<void()> m_onSessionLocked;
   std::function<void()> m_onSessionUnlocked;
   std::function<void()> m_onLockAborted;

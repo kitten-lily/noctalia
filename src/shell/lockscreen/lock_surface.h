@@ -66,6 +66,9 @@ public:
       std::optional<LockscreenTransitionKind> transition, const LockscreenTransitionParams& params, float durationMs
   );
   void startEnterTransition();
+  /// Ends the lock-entry transition at once, so the pre-lock desktop capture is no longer drawn.
+  /// The capture is kept for the unlock transition.
+  void skipEnterTransition();
   void startExitTransition();
   [[nodiscard]] bool transitionInputReady() const noexcept;
   [[nodiscard]] bool exitTransitionComplete() const noexcept;
@@ -94,7 +97,10 @@ public:
   void setOutputKey(std::string outputKey) { m_outputKey = std::move(outputKey); }
   void setWidgetsHost(LockscreenWidgetsHost* host) noexcept { m_widgetsHost = host; }
 
-  [[nodiscard]] bool firstFrameRendered() const noexcept { return m_firstFrameRendered; }
+  /// True once this surface has presented a frame and nothing it presents can still show the
+  /// pre-lock desktop capture. The last frame presented before suspend is what the output shows
+  /// on resume, so suspend must wait for this on every surface.
+  [[nodiscard]] bool desktopConcealed() const noexcept;
   void setRenderCallback(std::function<void()> callback) { m_renderCallback = std::move(callback); }
 
   static void handleConfigure(
@@ -103,6 +109,7 @@ public:
   );
 
 protected:
+  void render() override;
   void onFrameCallbackDone() override;
 
 private:
@@ -125,7 +132,15 @@ private:
     ExitComplete,
   };
 
+  // Tracks the first frame committed after skipEnterTransition() through to its presentation.
+  enum class ConcealFrame : std::uint8_t {
+    None,
+    AwaitingCommit,
+    AwaitingPresent,
+  };
+
   void prepareFrame(bool needsUpdate, bool needsLayout);
+  [[nodiscard]] bool entryTransitionActive() const noexcept;
   [[nodiscard]] bool ensureTransitionCaptureTexture();
   void layoutCoverOnly(std::uint32_t width, std::uint32_t height);
   void layoutTransitionCover();
@@ -230,6 +245,7 @@ private:
   std::string m_outputKey;
   LockscreenWidgetsHost* m_widgetsHost = nullptr;
   bool m_firstFrameRendered = false;
+  ConcealFrame m_concealFrame = ConcealFrame::None;
   std::function<void()> m_renderCallback;
   std::function<void()> m_transitionCallback;
 

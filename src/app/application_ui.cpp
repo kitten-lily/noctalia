@@ -352,7 +352,6 @@ void Application::initLockScreenAndSession() {
         if (m_screenSaverService != nullptr) {
           m_screenSaverService->emitActiveChanged(true);
         }
-        releaseSleepDelayInhibitIfPending();
       },
       [this]() {
         m_idleGraceOverlay.hide();

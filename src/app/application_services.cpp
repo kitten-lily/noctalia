@@ -1150,31 +1150,29 @@ void Application::initSystemBusServices() {
               }
               return;
             }
-            if (m_lockScreen.isSessionLocked()) {
-              m_releaseSleepDelayWhenLocked = false;
-              if (m_logindService != nullptr) {
-                m_logindService->releaseSleepDelayInhibit();
-              }
-              return;
-            }
             m_releaseSleepDelayWhenLocked = true;
-            if (m_lockScreen.isActive()) {
-              return;
-            }
-            if (!m_lockScreen.lock()) {
-              m_releaseSleepDelayWhenLocked = false;
-              if (m_logindService != nullptr) {
-                m_logindService->releaseSleepDelayInhibit();
-              }
-              return;
-            }
-            // Deferred lock (no outputs yet) never reaches SessionLocked; do not block sleep.
             if (!m_lockScreen.isActive()) {
-              m_releaseSleepDelayWhenLocked = false;
-              if (m_logindService != nullptr) {
-                m_logindService->releaseSleepDelayInhibit();
+              // No entry transition: its first frames are a capture of the unlocked desktop.
+              if (!m_lockScreen.lock(/*animateEntry=*/false)) {
+                m_releaseSleepDelayWhenLocked = false;
+                if (m_logindService != nullptr) {
+                  m_logindService->releaseSleepDelayInhibit();
+                }
+                return;
+              }
+              // Deferred lock (no outputs yet) never reaches SessionLocked; do not block sleep.
+              if (!m_lockScreen.isActive()) {
+                m_releaseSleepDelayWhenLocked = false;
+                if (m_logindService != nullptr) {
+                  m_logindService->releaseSleepDelayInhibit();
+                }
+                return;
               }
             }
+            // The last frame presented before sleep is what the outputs show on resume. Hold the
+            // inhibit until no lock surface can still present the pre-lock desktop capture; this also
+            // cuts short an entry transition from a lock that started just before suspend.
+            m_lockScreen.runWhenDesktopConcealed([this]() { releaseSleepDelayInhibitIfPending(); });
             return;
           }
           m_skipLockOnNextSleep = false;

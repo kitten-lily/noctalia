@@ -264,7 +264,8 @@ private:
   std::optional<std::string> m_earlySessionBusError;
   std::unique_ptr<SystemBus> m_systemBus;
   std::unique_ptr<LogindService> m_logindService;
-  // Set on PrepareForSleep(true); cleared when the session lock engages (or the lock aborts).
+  // Set on PrepareForSleep(true); cleared once the session is locked and no lock surface still shows
+  // the pre-lock desktop capture (or the lock ends or aborts).
   bool m_releaseSleepDelayWhenLocked = false;
   // Set before Noctalia-initiated suspend so PrepareForSleep skips lock-before-sleep.
   bool m_skipLockOnNextSleep = false;

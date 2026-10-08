@@ -788,6 +788,33 @@ void LockSurface::startEnterTransition() {
   }
 }
 
+bool LockSurface::entryTransitionActive() const noexcept {
+  return m_transitionPhase == TransitionPhase::Cover
+      || m_transitionPhase == TransitionPhase::FinalPrime
+      || m_transitionPhase == TransitionPhase::Ready
+      || m_transitionPhase == TransitionPhase::Entering;
+}
+
+void LockSurface::skipEnterTransition() {
+  m_enterTransitionRequested = false;
+  if (!entryTransitionActive()) {
+    return;
+  }
+
+  cancelTransitionAnimation();
+  m_transitionPhase = TransitionPhase::Stable;
+  m_transitionProgress = 1.0F;
+  syncTransitionCover();
+  // A frame showing the capture may already be committed; only the next commit is concealed.
+  m_concealFrame = ConcealFrame::AwaitingCommit;
+  requestUpdate();
+  requestRedraw();
+}
+
+bool LockSurface::desktopConcealed() const noexcept {
+  return m_firstFrameRendered && !entryTransitionActive() && m_concealFrame == ConcealFrame::None;
+}
+
 void LockSurface::startExitTransition() {
   m_enterTransitionRequested = false;
   if (m_transitionPhase == TransitionPhase::ExitComplete
@@ -2104,12 +2131,27 @@ void LockSurface::forceRepaintAfterResume() {
   requestRedraw();
 }
 
+void LockSurface::render() {
+  // Mirrors Surface::render()'s guard: only a render that passes it commits a frame.
+  const bool commits = m_surface != nullptr && renderContext() != nullptr && renderTarget().isReady();
+  Surface::render();
+  if (commits && m_concealFrame == ConcealFrame::AwaitingCommit) {
+    m_concealFrame = ConcealFrame::AwaitingPresent;
+  }
+}
+
 void LockSurface::onFrameCallbackDone() {
+  bool presentedMilestone = false;
   if (!m_firstFrameRendered) {
     m_firstFrameRendered = true;
-    if (m_renderCallback) {
-      m_renderCallback();
-    }
+    presentedMilestone = true;
+  }
+  if (m_concealFrame == ConcealFrame::AwaitingPresent) {
+    m_concealFrame = ConcealFrame::None;
+    presentedMilestone = true;
+  }
+  if (presentedMilestone && m_renderCallback) {
+    m_renderCallback();
   }
 
   if (m_transitionPhase == TransitionPhase::Cover) {

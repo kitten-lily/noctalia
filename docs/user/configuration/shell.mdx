@@ -436,6 +436,8 @@ Configure under **`[lockscreen]`** in TOML, or use **Settings → Security → L
 
 Lock screen transitions have their own effect pool, duration, and edge smoothness. They do not read or modify the settings under **`[wallpaper]`**. Set `transition = []` to disable lock and unlock animations.
 
+Locks taken for sleep (`lock_before_suspend`, `lock-and-suspend`) skip the entry transition, and an entry transition already running is cut short. Suspend waits until every lock surface has presented a frame without the pre-lock capture. Outputs keep showing their last frame through sleep, so an animated entry would leave a snapshot of the unlocked desktop on screen when the system resumes. The unlock transition is unaffected.
+
 ```toml
 [lockscreen]
 enabled               = true      # master switch for session lock
